@@ -9,16 +9,14 @@ int main(int argc, char *argv[]) {
 			return 0;
 		}
 	}
-	int nLine = 0, nWord = 0, nChar = 0, isLastSpace = 1, nLineChar = 0;
+	int nLine = 0, nWord = 0, nChar = 0, isLastSpace = 1;
 	char cNext;
 	while ((cNext = getchar()) != EOF) {
 		++nChar;
-		++nLineChar;
-		if (isspace(cNext)) {
+		if (isspace(cNext) || iscntrl(cNext)) {
 			isLastSpace = 1;
 			if (cNext == '\n') {
 				++nLine;
-				nLineChar = 0;
 			}
 		} else {
 			if (isLastSpace)
@@ -26,8 +24,6 @@ int main(int argc, char *argv[]) {
 			isLastSpace = 0;
 		}
 	}
-	if (nLineChar)
-		++nLine;
 	if (fInput == NULL)
 		printf("%d\t%d\t%d\n", nLine, nWord, nChar);
 	else {
