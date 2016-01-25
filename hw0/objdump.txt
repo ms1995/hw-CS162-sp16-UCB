@@ -1,0 +1,79 @@
+What file format is used for this binary? And what architecture is it compiled for?
+
+File format: elf64-x86-64. 64-bit Executable and Linkable Format, targeting x86_64.
+Architecture: i386:x86-64.
+
+
+What are some of the names of segment/sections you find?
+
+.interp
+.note.ABI-tag
+.note.gnu.build-id
+.gnu.hash
+.dynsym
+.dynstr
+.gnu.version
+.gnu.version_r
+.rela.dyn
+.rela.plt
+.init
+.plt
+.text
+.fini
+.rodata
+.eh_frame_hdr
+.eh_frame
+.init_array
+.fini_array
+.jcr
+.dynamic
+.got
+.got.plt
+.data
+.bss
+.comment
+.debug_aranges
+.debug_info
+.debug_abbrev
+.debug_line
+.debug_str
+
+Section .init
+	_init
+
+Section .plt
+	iscntrl@plt-0x10
+	iscntrl@plt
+	fclose@plt
+	printf@plt
+	freopen@plt
+	isspace@plt
+	__libc_start_main@plt
+	getchar@plt
+	__gmon_start__@plt
+
+Section .text
+	_start
+	deregister_tm_clones
+	register_tm_clones
+	__do_global_dtors_aux
+	frame_dummy
+	main
+	__libc_csu_init
+	__libc_csu_fini
+
+Section .fini
+	_fini
+
+
+What segment/section contains main (the function) and what is the address of main? (It should be the same as what you saw in gdb)
+
+.text
+00000000004006dd
+Yes the two addresses are exactly the same.
+
+
+Do you see the stack segment anywhere? What about the heap? Explain.
+
+No. No.
+The outputs of objdump illustrate the structure of the executable file. Stack segment, and heap segment, are actually ranges of data in the runtime memory. They are not parts of the program codes.

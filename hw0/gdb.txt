@@ -1,0 +1,76 @@
+COMMAND: gdb wc
+Then run directly, without any argument.
+
+
+What is the value of argv?
+
+argv = 1
+
+
+What is pointed to by argv?
+
+argv points to 0x7fffffffe608, address of argv[0].
+argv[0] points to a string with value "/home/vagrant/code/personal/hw0/wc" and start address 0x7fffffffe834.
+
+
+What is the address of the function main?
+    (gdb) info address main
+    Symbol "main" is a function at address 0x4006dd.
+
+So the entry address of the function main is 0x4006dd.
+
+
+Try info stack. Explain what you see.
+    (gdb) info stack
+    #0  main (argc=1, argv=0x7fffffffe608) at wc.c:12
+
+EXPLANATION: #0 indicates the order of the only frame in the stack. "main" is the name of the function, followed by its two arguments and their respective values in the stack frame. "at wc.c:12" shows that the program is now breakpointing at the 12th line of its source code file named "wc.c".
+
+
+Try info frame. Explain what you see.
+    (gdb) info frame
+    Stack level 0, frame at 0x7fffffffe530:
+     rip = 0x400703 in main (wc.c:12); saved rip = 0x7ffff7a36ec5
+     source language c.
+     Arglist at 0x7fffffffe520, args: argc=1, argv=0x7fffffffe608
+     Locals at 0x7fffffffe520, Previous frame's sp is 0x7fffffffe530
+     Saved registers:
+      rbp at 0x7fffffffe520, rip at 0x7fffffffe528
+
+EXPLANATION: There's only one frame in the stack, so it's "stack level 0". 0x7fffffffe530 is the starting address of the frame. The program currently stops at 0x400703 within the "main" function, which corresponds to the 12th line of its source code file named "wc.c". 0x7ffff7a36ec5 is the saved program counter where the "main" function was called. The program was compiled from C source codes. Argument list starts at 0x7fffffffe520. There's only one argument, with it's starting address 0x7fffffffe608. Local variable list starts at 0x7fffffffe520. Previous frame starts at 0x7fffffffe530. Since it's the only frame in the stack, the address of its previous frame is the same as it's own address. Register rbp and rip are saved in this frame, with value 0x7fffffffe520 and 0x7fffffffe528 respectively.
+
+
+Try info registers. Which registers are holding aspects of the program that you recognize?
+    (gdb) info registers
+    rax            0x4006dd	4196061
+    rbx            0x0	0
+    rcx            0x0	0
+    rdx            0x7fffffffe618	140737488348696
+    rsi            0x7fffffffe608	140737488348680
+    rdi            0x1	1
+    rbp            0x7fffffffe520	0x7fffffffe520
+    rsp            0x7fffffffe4f0	0x7fffffffe4f0
+    r8             0x7ffff7dd4e80	140737351863936
+    r9             0x7ffff7dea560	140737351951712
+    r10            0x7fffffffe3b0	140737488348080
+    r11            0x7ffff7a36dd0	140737348070864
+    r12            0x4005f0 4195824
+    r13            0x7fffffffe600	140737488348672
+    r14            0x0	0
+    r15            0x0	0
+    rip            0x400743	0x400743 <main+102>
+    eflags         0x246	[ PF ZF IF ]
+    cs             0x33	51
+    ss             0x2b	43
+    ds             0x0	0
+    es             0x0	0
+    fs             0x0	0
+    gs             0x0	0
+
+RECOGNIZED REGISTERS:
+rax, entry address of the function main;
+rsi, value of argv, starting address of argument values;
+rbp, first address of arglist;
+rip, current instruction pointer;
+
+
