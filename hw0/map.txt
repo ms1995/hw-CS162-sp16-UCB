@@ -1,0 +1,43 @@
+Use objdump with the -D flag on the map executable. Which of the addresses from the output of running ./map are defined in the executable, and which segment/section is each defined in?
+
+Address of _main, in .text
+Address of _recur, in .text
+Address of static data, in .data
+
+
+Make a list of the important segments, and what they are used for (look up their names on the Internet if you don’t know).
+
+.init	Codes to help initialize the process.
+.plt	Table used to call external procedures or functions whose addresses can only be determined at runtime.
+.text	Codes of the program.
+.data	For storing used data like global variables. They can be changed at runtime.
+.rodata	Similar to .data, but cannot be changed at runtime.
+.fini	Codes to help terminate the process.
+
+
+What direction is the stack growing in?
+
+The outputs are:
+	recur call 3: stack@ 0x7ffe9cabcacc
+	recur call 2: stack@ 0x7ffe9cabca9c
+	recur call 1: stack@ 0x7ffe9cabca6c
+	recur call 0: stack@ 0x7ffe9cabca3c
+According to the source code, recur(3) is called first and recur(0) is called last. So when the stack grows, the value of its top address becomes smaller. The stack grows to lower addresses in the memory.
+
+
+How large is the stack frame for each recursive call?
+
+0x30, that is 48 bytes.
+
+
+Where is the heap? What direction is it growing in?
+
+The outputs are:
+	Heap: malloc 1: 0x2011010
+	Heap: malloc 2: 0x2011080
+So the start address of the heap is 0x2011010, and it grows to higher addresses in the memory.
+
+
+Are the two malloc()ed memory areas contiguous? (e.g. is there any extra space between their addresses?)
+
+According to the source code, the program allocates 100 bytes each time. However, the outputs show that start addresses of two allocations are 0x70 (112) bytes away from each other. So the areas are not contiguous.
