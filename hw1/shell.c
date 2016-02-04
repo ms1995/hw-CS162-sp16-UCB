@@ -1,9 +1,12 @@
 #include <ctype.h>
 #include <errno.h>
+#include <linux/limits.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <signal.h>
 #include <sys/wait.h>
@@ -11,6 +14,7 @@
 #include <unistd.h>
 
 #include "tokenizer.h"
+#define min(a,b) a<b?a:b
 
 /* Whether the shell is connected to an actual terminal or not. */
 bool shell_is_interactive;
@@ -24,8 +28,16 @@ struct termios shell_tmodes;
 /* Process group id for the shell */
 pid_t shell_pgid;
 
+/* Path of current directory */
+char curr_dir[PATH_MAX];
+
+/* Initial path */
+char init_dir[PATH_MAX];
+
 int cmd_exit(struct tokens *tokens);
 int cmd_help(struct tokens *tokens);
+int cmd_pwd(struct tokens *tokens);
+int cmd_cd(struct tokens *tokens);
 
 /* Built-in command functions take token array (see parse.h) and return int */
 typedef int cmd_fun_t(struct tokens *tokens);
@@ -40,7 +52,21 @@ typedef struct fun_desc {
 fun_desc_t cmd_table[] = {
   {cmd_help, "?", "show this help menu"},
   {cmd_exit, "exit", "exit the command shell"},
+  {cmd_pwd,  "pwd", "print current working directory"},
+  {cmd_cd,   "cd", "change working directory"},
 };
+
+void print_error(const char *msg, const int num, ...) {
+  fprintf(stderr, "-shell: %s", msg);
+  if (num) {
+    va_list valist;
+    va_start(valist, num);
+    for (int i = 0; i < num; ++i)
+      fprintf(stderr, ": %s", va_arg(valist, const char *));
+    va_end(valist);
+  }
+  fprintf(stderr, "\n");
+}
 
 /* Prints a helpful description for the given command */
 int cmd_help(struct tokens *tokens) {
@@ -52,6 +78,75 @@ int cmd_help(struct tokens *tokens) {
 /* Exits this shell */
 int cmd_exit(struct tokens *tokens) {
   exit(0);
+}
+
+/* Print current working directory */
+int cmd_pwd(struct tokens *tokens) {
+  if (strlen(curr_dir))
+    fprintf(stdout, "%s\n", curr_dir);
+  else
+    fprintf(stdout, "/\n");
+  return 0;
+}
+
+void trunc_last_dir(char *path) {
+  if (path == NULL)
+    return;
+  int len = strlen(path);
+  for (int i = len - 1; i >= 0; --i)
+    if (path[i] == '/') {
+      path[i] = 0;
+      break;
+    }
+}
+
+/* Change working directory */
+int cmd_cd(struct tokens *tokens) {
+  struct stat s;
+  char *new_dir = tokens_get_token(tokens, 1);
+  if (new_dir) {
+    char *new_dir_end = new_dir + strlen(new_dir);
+    char curr_dir_tmp[sizeof(curr_dir)];
+    memcpy(curr_dir_tmp, curr_dir, sizeof(curr_dir));
+    if (new_dir[0] == '/') {
+      curr_dir_tmp[0] = 0;
+      ++new_dir;
+    }
+    while (new_dir < new_dir_end) {
+      char *first_slash = new_dir;
+      while (first_slash != new_dir_end && *first_slash != '/') ++first_slash;
+      *first_slash = 0;
+      // fprintf(stdout, "DEBUG: new_dir: %s\n", new_dir);
+      int len = strlen(new_dir);
+      if (!len)
+        goto next_sec;
+      if (new_dir[0] == '.') {
+        if (len == 1)
+          goto next_sec;
+        if (new_dir[1] == '.' && len == 2) {
+          trunc_last_dir(curr_dir_tmp);
+          goto next_sec;
+        }
+      }
+      sprintf(curr_dir_tmp, "%s/%s", curr_dir_tmp, new_dir);
+      next_sec:
+        new_dir = first_slash + 1;
+      if (stat(curr_dir_tmp, &s) == 0) {
+        if (!S_ISDIR(s.st_mode)) {
+          print_error("cd", 2, curr_dir_tmp, "Not a directory");
+          return 1;
+        }
+      } else {
+        print_error("cd", 2, curr_dir_tmp, "No such file or directory");
+        return 1;
+      }
+    }
+    // fprintf(stdout, "DEBUG: curr_dir_tmp: %s\n", curr_dir_tmp);
+    memcpy(curr_dir, curr_dir_tmp, sizeof(curr_dir));
+  } else {
+    memcpy(curr_dir, init_dir, sizeof(curr_dir));
+  }
+  return 0;
 }
 
 /* Looks up the built-in command, if it exists. */
@@ -93,6 +188,12 @@ int main(int argc, char *argv[]) {
 
   static char line[4096];
   int line_num = 0;
+
+  if (!getcwd(curr_dir, sizeof(curr_dir))) {
+    print_error("Cannot get current working directory.", 0);
+    return 1;
+  }
+  memcpy(init_dir, curr_dir, sizeof(curr_dir));
 
   /* Please only print shell prompts when standard input is not a tty */
   if (shell_is_interactive)
