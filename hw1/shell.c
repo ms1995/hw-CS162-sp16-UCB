@@ -93,7 +93,7 @@ int cmd_pwd(struct tokens *tokens) {
 
 /* Wait for all background jobs to finish */
 int cmd_wait(struct tokens *tokens) {
-  wait(NULL);
+  while (wait(NULL) > 0);
   return 0;
 }
 
