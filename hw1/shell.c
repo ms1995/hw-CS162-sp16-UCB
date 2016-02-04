@@ -213,6 +213,8 @@ int main(int argc, char *argv[]) {
   }
   memcpy(init_dir, curr_dir, sizeof(curr_dir));
 
+  signal(SIGINT, SIG_IGN);
+
   /* Please only print shell prompts when standard input is not a tty */
   if (shell_is_interactive)
     fprintf(stdout, "%d: ", line_num);
@@ -235,10 +237,13 @@ int main(int argc, char *argv[]) {
         char *last_token = tokens_get_token(tokens, n_arg-1);
         int pid = fork();
         if (pid) {
-          if (strcmp(last_token, "&"))
+          if (strcmp(last_token, "&")) {
+            setpgid(pid, pid);
+            tcsetpgrp(0, pid);
             waitpid(pid, NULL, 0);
+          }
         } else {
-          setpgrp();
+          signal(SIGINT, SIG_DFL);
           if (strcmp(last_token, "&") == 0)
             --n_arg;
           char **arg_list = malloc((n_arg + 1) * sizeof(char*));
