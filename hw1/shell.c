@@ -210,7 +210,23 @@ int main(int argc, char *argv[]) {
       cmd_table[fundex].fun(tokens);
     } else {
       /* REPLACE this to run commands as programs. */
-      fprintf(stdout, "This shell doesn't know how to run programs.\n");
+      // fprintf(stdout, "This shell doesn't know how to run programs.\n");
+      char *path_to_prog = tokens_get_token(tokens, 0);
+      if (path_to_prog != NULL && strlen(path_to_prog)) {
+        int pid = fork();
+        if (pid)
+          wait(NULL);
+        else {
+          int n_arg = tokens_get_length(tokens);
+          char **arg_list = malloc((n_arg + 1) * sizeof(char*));
+          for (int i = 0; i < n_arg; ++i)
+            arg_list[i] = tokens_get_token(tokens, i);
+          arg_list[n_arg] = NULL;
+          execv(path_to_prog, arg_list);
+          print_error(path_to_prog, 1, "cannot execute");
+          return -1;
+        }
+      }
     }
 
     if (shell_is_interactive)
