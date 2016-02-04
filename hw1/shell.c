@@ -38,6 +38,7 @@ int cmd_exit(struct tokens *tokens);
 int cmd_help(struct tokens *tokens);
 int cmd_pwd(struct tokens *tokens);
 int cmd_cd(struct tokens *tokens);
+int cmd_wait(struct tokens *tokens);
 
 /* Built-in command functions take token array (see parse.h) and return int */
 typedef int cmd_fun_t(struct tokens *tokens);
@@ -54,6 +55,7 @@ fun_desc_t cmd_table[] = {
   {cmd_exit, "exit", "exit the command shell"},
   {cmd_pwd,  "pwd", "print current working directory"},
   {cmd_cd,   "cd", "change working directory"},
+  {cmd_wait, "wait", "wait for all background jobs to finish"},
 };
 
 void print_error(const char *msg, const int num, ...) {
@@ -86,6 +88,12 @@ int cmd_pwd(struct tokens *tokens) {
     fprintf(stdout, "%s\n", curr_dir);
   else
     fprintf(stdout, "/\n");
+  return 0;
+}
+
+/* Wait for all background jobs to finish */
+int cmd_wait(struct tokens *tokens) {
+  wait(NULL);
   return 0;
 }
 
@@ -223,14 +231,20 @@ int main(int argc, char *argv[]) {
       // fprintf(stdout, "This shell doesn't know how to run programs.\n");
       char *path_to_prog = tokens_get_token(tokens, 0);
       if (path_to_prog != NULL && strlen(path_to_prog)) {
+        int n_arg = tokens_get_length(tokens);
+        char *last_token = tokens_get_token(tokens, n_arg-1);
         int pid = fork();
-        if (pid)
-          wait(NULL);
-        else {
-          int n_arg = tokens_get_length(tokens);
+        if (pid) {
+          if (strcmp(last_token, "&"))
+            waitpid(pid, NULL, 0);
+        } else {
+          setpgrp();
+          if (strcmp(last_token, "&") == 0)
+            --n_arg;
           char **arg_list = malloc((n_arg + 1) * sizeof(char*));
           for (int i = 0; i < n_arg; ++i) {
             arg_list[i] = tokens_get_token(tokens, i);
+            // printf("DEBUG: arg: %s\n", arg_list[i]);
             if (strcmp(arg_list[i], ">") == 0) {
               if (n_arg == i+1) {
                 print_error("No output file specified.", 0);
