@@ -100,46 +100,56 @@ void trunc_last_dir(char *path) {
     }
 }
 
+int has_slash(const char *path) {
+  while (*path != 0 && *path != '/')
+    ++path;
+  return *path == '/';
+}
+
+void mov_path(char *curr_dir_tmp, char *new_dir) {
+  char *new_dir_end = new_dir + strlen(new_dir);
+  if (new_dir[0] == '/') {
+    curr_dir_tmp[0] = 0;
+    ++new_dir;
+  }
+  while (new_dir < new_dir_end) {
+    char *first_slash = new_dir;
+    while (first_slash != new_dir_end && *first_slash != '/') ++first_slash;
+    *first_slash = 0;
+    // fprintf(stdout, "DEBUG: new_dir: %s\n", new_dir);
+    int len = strlen(new_dir);
+    if (!len)
+      goto next_sec;
+    if (new_dir[0] == '.') {
+      if (len == 1)
+        goto next_sec;
+      if (new_dir[1] == '.' && len == 2) {
+        trunc_last_dir(curr_dir_tmp);
+        goto next_sec;
+      }
+    }
+    sprintf(curr_dir_tmp, "%s/%s", curr_dir_tmp, new_dir);
+    next_sec:
+      new_dir = first_slash + 1;
+  }
+}
+
 /* Change working directory */
 int cmd_cd(struct tokens *tokens) {
   struct stat s;
   char *new_dir = tokens_get_token(tokens, 1);
   if (new_dir) {
-    char *new_dir_end = new_dir + strlen(new_dir);
     char curr_dir_tmp[sizeof(curr_dir)];
     memcpy(curr_dir_tmp, curr_dir, sizeof(curr_dir));
-    if (new_dir[0] == '/') {
-      curr_dir_tmp[0] = 0;
-      ++new_dir;
-    }
-    while (new_dir < new_dir_end) {
-      char *first_slash = new_dir;
-      while (first_slash != new_dir_end && *first_slash != '/') ++first_slash;
-      *first_slash = 0;
-      // fprintf(stdout, "DEBUG: new_dir: %s\n", new_dir);
-      int len = strlen(new_dir);
-      if (!len)
-        goto next_sec;
-      if (new_dir[0] == '.') {
-        if (len == 1)
-          goto next_sec;
-        if (new_dir[1] == '.' && len == 2) {
-          trunc_last_dir(curr_dir_tmp);
-          goto next_sec;
-        }
-      }
-      sprintf(curr_dir_tmp, "%s/%s", curr_dir_tmp, new_dir);
-      next_sec:
-        new_dir = first_slash + 1;
-      if (stat(curr_dir_tmp, &s) == 0) {
-        if (!S_ISDIR(s.st_mode)) {
-          print_error("cd", 2, curr_dir_tmp, "Not a directory");
-          return 1;
-        }
-      } else {
-        print_error("cd", 2, curr_dir_tmp, "No such file or directory");
+    mov_path(curr_dir_tmp, new_dir);
+    if (stat(curr_dir_tmp, &s) == 0) {
+      if (!S_ISDIR(s.st_mode)) {
+        print_error("cd", 2, curr_dir_tmp, "Not a directory");
         return 1;
       }
+    } else {
+      print_error("cd", 2, curr_dir_tmp, "No such file or directory");
+      return 1;
     }
     // fprintf(stdout, "DEBUG: curr_dir_tmp: %s\n", curr_dir_tmp);
     memcpy(curr_dir, curr_dir_tmp, sizeof(curr_dir));
@@ -222,7 +232,25 @@ int main(int argc, char *argv[]) {
           for (int i = 0; i < n_arg; ++i)
             arg_list[i] = tokens_get_token(tokens, i);
           arg_list[n_arg] = NULL;
-          execv(path_to_prog, arg_list);
+          if (has_slash(path_to_prog)) {
+            mov_path(curr_dir, path_to_prog);
+            execv(curr_dir, arg_list);
+          } else {
+            char *env_path = getenv("PATH");
+            char *env_path_end = env_path + strlen(env_path);
+            while (env_path < env_path_end) {
+              char *det = env_path;
+              while (det != env_path_end && *det != ':') ++det;
+              *det = 0;
+              strcpy(curr_dir, env_path);
+              int single_path_len = strlen(curr_dir);
+              if (curr_dir[single_path_len - 1] != '/')
+                curr_dir[single_path_len++] = '/';
+              strcpy(curr_dir + single_path_len, path_to_prog);
+              execv(curr_dir, arg_list);
+              env_path = det + 1;
+            }
+          }
           print_error(path_to_prog, 1, "cannot execute");
           return -1;
         }
