@@ -229,8 +229,30 @@ int main(int argc, char *argv[]) {
         else {
           int n_arg = tokens_get_length(tokens);
           char **arg_list = malloc((n_arg + 1) * sizeof(char*));
-          for (int i = 0; i < n_arg; ++i)
+          for (int i = 0; i < n_arg; ++i) {
             arg_list[i] = tokens_get_token(tokens, i);
+            if (strcmp(arg_list[i], ">") == 0) {
+              if (n_arg == i+1) {
+                print_error("No output file specified.", 0);
+                return -1;
+              }
+              n_arg = i;
+              if (freopen(tokens_get_token(tokens, i+1), "w", stdout) == NULL) {
+                print_error("Cannot open output file.", 0);
+                return -1;
+              }
+            } else if (strcmp(arg_list[i], "<") == 0) {
+              if (n_arg == i+1) {
+                print_error("No input file specified.", 0);
+                return -1;
+              }
+              n_arg = i;
+              if (freopen(tokens_get_token(tokens, i+1), "r", stdin) == NULL) {
+                print_error("Cannot open input file.", 0);
+                return -1;
+              }
+            }
+          }
           arg_list[n_arg] = NULL;
           if (has_slash(path_to_prog)) {
             mov_path(curr_dir, path_to_prog);
