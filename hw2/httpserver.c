@@ -28,6 +28,97 @@ char *server_files_directory;
 char *server_proxy_hostname;
 int server_proxy_port;
 
+int file_exists(char *filename) {
+  struct stat buffer;   
+  if (stat(filename, &buffer))
+  	return 0;
+  return buffer.st_size;
+}
+
+void send_not_found(int fd) {
+	http_start_response(fd, 404);
+	http_send_header(fd, "Content-type", "text/html");
+	http_end_headers(fd);
+	http_send_string(fd,
+	    "<center>"
+	    "<h1>404 Not Found</h1>"
+	    "<hr>"
+	    "<p>WTF</p>"
+	    "</center>");
+}
+
+void send_bad_request(int fd) {
+	http_start_response(fd, 400);
+	http_send_header(fd, "Content-type", "text/html");
+	http_end_headers(fd);
+	http_send_string(fd,
+	    "<center>"
+	    "<h1>400 Bad Request</h1>"
+	    "<hr>"
+	    "<p>WTF</p>"
+	    "</center>");
+}
+
+void send_file(char *filename, int fd) {
+	int fsize = file_exists(filename);
+	if (!fsize) {
+		send_not_found(fd);
+		return;
+	}
+	size_t bytes_read;
+	char buff[255];
+	FILE *fp = fopen(filename, "rb");
+	http_start_response(fd, 200);
+	http_send_header(fd, "Content-type", http_get_mime_type(filename));
+	sprintf(buff, "%d", fsize);
+	http_send_header(fd, "Content-Length", buff);
+	http_end_headers(fd);
+	while (bytes_read = fread(buff, 1, sizeof(buff), fp))
+		http_send_data(fd, buff, bytes_read);
+	fclose(fp);
+}
+
+void show_dir_content(char *dir, char *uri, int fd) {
+	int buf_size = 1024, used_size, uri_size = strlen(uri);
+	char *buffer = malloc(buf_size);
+	sprintf(buffer, "<h1>Index of %s</h1><a href=\"../\">Parent directory</a><br><br>", dir);
+	used_size = strlen(buffer);
+	struct dirent *dp;
+	DIR *dirp = opendir(dir);
+	if (dirp) {
+		errno = 0;
+		while (dp = readdir(dirp)) {
+			if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
+				continue;
+			int html_len = strlen(dp->d_name) * 2 + uri_size + 21;
+	    while (used_size + html_len >= buf_size) {
+	    	buf_size *= 2;
+		    char *new_buffer = malloc(buf_size);
+		    strcpy(new_buffer, buffer);
+		    free(buffer);
+		    buffer = new_buffer;
+	  	}
+	  	sprintf(buffer + used_size, "<a href=\"%s/%s\">%s</a><br>", uri, dp->d_name, dp->d_name);
+	  	used_size = strlen(buffer);
+		}
+		closedir(dirp);
+	} else {
+	  free(buffer);
+	  send_not_found(fd);
+	  return;
+	}
+
+	char buff[255];
+	http_start_response(fd, 200);
+	http_send_header(fd, "Content-type", "text/html");
+	sprintf(buff, "%d", used_size);
+	http_send_header(fd, "Content-Length", buff);
+	http_end_headers(fd);
+	http_send_string(fd, buffer);
+
+	free(buffer);
+}
+
 /*
  * Reads an HTTP request from stream (fd), and writes an HTTP response
  * containing:
@@ -45,16 +136,42 @@ void handle_files_request(int fd) {
 
   struct http_request *request = http_request_parse(fd);
 
-  http_start_response(fd, 200);
-  http_send_header(fd, "Content-type", "text/html");
-  http_end_headers(fd);
-  http_send_string(fd,
-      "<center>"
-      "<h1>Welcome to httpserver!</h1>"
-      "<hr>"
-      "<p>Nothing's here yet.</p>"
-      "</center>");
+  if (request == NULL || request->path == NULL || request->path[0] != '/') {
+	  send_bad_request(fd);
+	  return;
+  }
 
+  int dirpath_length = strlen(server_files_directory);
+  // if (server_files_directory[dirpath_length - 1] == '/')
+  // 	--dirpath_length;
+  // char *filepath = malloc(dirpath_length + strlen(request.path) + 1);
+  char *filepath = malloc(dirpath_length + strlen(request->path) + 1);
+  strcpy(filepath, server_files_directory);
+  strcpy(filepath + dirpath_length, request->path);
+  dirpath_length = strlen(filepath);
+
+  struct stat buffer;
+  if (stat(filepath, &buffer)) {
+  	send_not_found(fd);
+  	free(filepath);
+  	return;
+  }
+
+  if (S_ISDIR(buffer.st_mode)) {
+  	char *indexpath = malloc(dirpath_length + 12); // "/index.html", length = 11
+  	strcpy(indexpath, filepath);
+  	strcpy(indexpath + dirpath_length, "/index.html");
+  	if (file_exists(indexpath)) {
+  		send_file(indexpath, fd);
+  	} else {
+  		show_dir_content(filepath, request->path, fd);
+  	}
+  	free(indexpath);
+  } else {
+  	send_file(filepath, fd);
+  }
+
+  free(filepath);
 }
 
 /*
