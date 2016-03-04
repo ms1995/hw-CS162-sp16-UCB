@@ -67,5 +67,32 @@ void *mm_realloc(void *ptr, size_t size) {
 }
 
 void mm_free(void *ptr) {
-    /* YOUR CODE HERE */
+    if (ptr == NULL || heap_start == NULL || ptr < heap_start)
+    	return;
+    struct data_block *curr_block = (struct data_block *) heap_start;
+    do
+    {
+    	curr_block = curr_block->next; // skip the first virtual block
+    	if (curr_block == NULL)
+    		return;
+    }
+    while (curr_block->data + curr_block->size <= ptr);
+    curr_block->is_free = 1;
+    if (curr_block->prev->is_free)
+    {
+    	// merge left
+    	curr_block->prev->next = curr_block->next;
+    	if (curr_block->next != NULL)
+    		curr_block->next->prev = curr_block->prev;
+    	curr_block->prev->size += curr_block->size + sizeof(struct data_block);
+    	curr_block = curr_block->prev;
+    }
+    if (curr_block->next != NULL && curr_block->next->is_free)
+    {
+    	// merge right
+    	curr_block->size += curr_block->next->size + sizeof(struct data_block);
+    	if (curr_block->next->next != NULL)
+    		curr_block->next->next->prev = curr_block;
+    	curr_block->next = curr_block->next->next;
+    }
 }
