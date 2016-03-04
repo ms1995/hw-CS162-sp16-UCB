@@ -9,7 +9,6 @@
 #include <unistd.h>
 #include <memory.h>
 
-size_t heap_size = 0;
 void *heap_start = NULL;
 
 struct data_block
@@ -53,9 +52,11 @@ void *mm_malloc(size_t size) {
     	new_block->is_free = 1;
     	new_block->prev = curr_block;
     	new_block->next = curr_block->next;
-    	curr_block->next->prev = new_block;
+    	if (curr_block->next != NULL)
+    		curr_block->next->prev = new_block;
     	curr_block->next = new_block;
     }
+    new_block->is_free = 0;
     memset(curr_block->data, 0, size);
     return curr_block->data;
 }
