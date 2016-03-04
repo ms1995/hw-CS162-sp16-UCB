@@ -56,7 +56,7 @@ void *mm_malloc(size_t size) {
     		curr_block->next->prev = new_block;
     	curr_block->next = new_block;
     }
-    new_block->is_free = 0;
+    curr_block->is_free = 0;
     memset(curr_block->data, 0, size);
     return curr_block->data;
 }
