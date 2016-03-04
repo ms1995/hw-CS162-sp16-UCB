@@ -21,14 +21,14 @@ struct data_block
 };
 
 void *mm_malloc(size_t size) {
-	if (size == 0)
-		return NULL;
+    size_t total_size = sizeof(struct data_block) + size;
+    if (total_size <= sizeof(struct data_block)) // overflow, or size=0
+    	return NULL;
     if (heap_start == NULL)
     {
     	heap_start = sbrk(sizeof(struct data_block));
     	memset(heap_start, 0, sizeof(struct data_block));
     }
-    size_t total_size = sizeof(struct data_block) + size;
     struct data_block *curr_block = (struct data_block *) heap_start;
     while (curr_block->size < size || !curr_block->is_free)
     {
@@ -45,10 +45,10 @@ void *mm_malloc(size_t size) {
     	}
     	curr_block = curr_block->next;
     }
-    if (curr_block->size > total_size + sizeof(struct data_block))
+    if (curr_block->size > total_size)
     {
     	struct data_block *new_block = (struct data_block *) (curr_block + total_size);
-    	size_t new_size = curr_block->size - size;
+    	size_t new_size = curr_block->size - total_size;
     	new_block->size = new_size;
     	new_block->is_free = 1;
     	new_block->prev = curr_block;
