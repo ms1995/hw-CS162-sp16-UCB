@@ -35,7 +35,7 @@ void *mm_malloc(size_t size) {
     	if (curr_block->next == NULL)
     	{
     		struct data_block *new_block = sbrk(total_size);
-    		if (new_block < 0)
+    		if (new_block == -1)
     			return NULL;
     		new_block->prev = curr_block;
     		new_block->next = NULL;
