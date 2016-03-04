@@ -37,8 +37,8 @@ void *mm_malloc(size_t size) {
     		struct data_block *new_block = sbrk(total_size);
     		if (new_block < 0)
     			return NULL;
-    		memset(new_block, 0, total_size);
     		new_block->prev = curr_block;
+    		new_block->next = NULL;
     		new_block->size = size;
     		new_block->is_free = 1;
     		curr_block->next = new_block;
@@ -49,7 +49,6 @@ void *mm_malloc(size_t size) {
     {
     	struct data_block *new_block = (struct data_block *) (curr_block + total_size);
     	size_t new_size = curr_block->size - size;
-    	memset(new_block, 0, new_size);
     	new_block->size = new_size;
     	new_block->is_free = 1;
     	new_block->prev = curr_block;
@@ -57,6 +56,7 @@ void *mm_malloc(size_t size) {
     	curr_block->next->prev = new_block;
     	curr_block->next = new_block;
     }
+    memset(curr_block->data, 0, size);
     return curr_block->data;
 }
 
