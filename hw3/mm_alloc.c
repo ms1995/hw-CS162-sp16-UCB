@@ -116,11 +116,6 @@ void *mm_realloc(void *ptr, size_t size) {
     if (new_block == NULL)
     	return NULL;
     memcpy(new_block->data, curr_block->data, min(size, curr_block->size));
-    new_block->next = curr_block->next;
-    new_block->prev = curr_block->prev;
-    if (curr_block->next)
-    	curr_block->next->prev = new_block;
-    curr_block->prev->next = new_block;
     mm_free(curr_block->data);
     return new_block->data;
 }
