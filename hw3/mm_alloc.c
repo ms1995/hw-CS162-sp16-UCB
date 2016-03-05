@@ -46,7 +46,7 @@ void *mm_malloc(size_t size) {
     }
     if (curr_block->size > total_size)
     {
-    	struct data_block *new_block = (struct data_block *) (curr_block + total_size);
+    	struct data_block *new_block = (struct data_block *) ((void*)curr_block + total_size);
     	size_t new_size = curr_block->size - total_size;
     	new_block->size = new_size;
     	new_block->is_free = 1;
@@ -55,6 +55,7 @@ void *mm_malloc(size_t size) {
     	if (curr_block->next != NULL)
     		curr_block->next->prev = new_block;
     	curr_block->next = new_block;
+    	curr_block->size = size;
     }
     curr_block->is_free = 0;
     memset(curr_block->data, 0, size);
