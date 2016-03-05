@@ -95,13 +95,15 @@ void mm_free(void *ptr) {
 }
 
 void *mm_realloc(void *ptr, size_t size) {
-    if (size == 0 || heap_start == NULL || ptr < heap_start)
+    if (size == 0)
     {
     	mm_free(ptr);
     	return NULL;
 	}
 	if (ptr == NULL)
 		return mm_malloc(size);
+	if (heap_start == NULL || ptr < heap_start)
+		return NULL;
     struct data_block *curr_block = (struct data_block *) heap_start;
     do
     {
@@ -119,6 +121,6 @@ void *mm_realloc(void *ptr, size_t size) {
     if (curr_block->next)
     	curr_block->next->prev = new_block;
     curr_block->prev->next = new_block;
-    mm_free(curr_block);
+    mm_free(curr_block->data);
     return new_block->data;
 }
