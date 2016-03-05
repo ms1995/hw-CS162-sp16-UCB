@@ -120,5 +120,5 @@ void *mm_realloc(void *ptr, size_t size) {
     	curr_block->next->prev = new_block;
     curr_block->prev->next = new_block;
     mm_free(curr_block);
-    return new_block;
+    return new_block->data;
 }
