@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <memory.h>
+#define min(a,b) a<b?a:b
 
 void *heap_start = NULL;
 
@@ -34,7 +35,7 @@ void *mm_malloc(size_t size) {
     	if (curr_block->next == NULL)
     	{
     		struct data_block *new_block = sbrk(total_size);
-    		if (new_block == -1)
+    		if (new_block == (void*)-1)
     			return NULL;
     		new_block->prev = curr_block;
     		new_block->next = NULL;
@@ -46,7 +47,7 @@ void *mm_malloc(size_t size) {
     }
     if (curr_block->size > total_size)
     {
-    	struct data_block *new_block = (struct data_block *) ((void*)curr_block + total_size);
+    	struct data_block *new_block = (struct data_block *) ((void*)curr_block + total_size); // strange
     	size_t new_size = curr_block->size - total_size;
     	new_block->size = new_size;
     	new_block->is_free = 1;
@@ -60,11 +61,6 @@ void *mm_malloc(size_t size) {
     curr_block->is_free = 0;
     memset(curr_block->data, 0, size);
     return curr_block->data;
-}
-
-void *mm_realloc(void *ptr, size_t size) {
-    /* YOUR CODE HERE */
-    return NULL;
 }
 
 void mm_free(void *ptr) {
@@ -96,4 +92,33 @@ void mm_free(void *ptr) {
     		curr_block->next->next->prev = curr_block;
     	curr_block->next = curr_block->next->next;
     }
+}
+
+void *mm_realloc(void *ptr, size_t size) {
+    if (size == 0 || heap_start == NULL || ptr < heap_start)
+    {
+    	mm_free(ptr);
+    	return NULL;
+	}
+	if (ptr == NULL)
+		return mm_malloc(size);
+    struct data_block *curr_block = (struct data_block *) heap_start;
+    do
+    {
+    	curr_block = curr_block->next; // skip the first virtual block
+    	if (curr_block == NULL)
+    		return NULL;
+    }
+    while (curr_block->data + curr_block->size <= ptr);
+    struct data_block *new_block = (struct data_block *) mm_malloc(size);
+    if (new_block == NULL)
+    	return NULL;
+    memcpy(new_block->data, curr_block->data, min(size, curr_block->size));
+    new_block->next = curr_block->next;
+    new_block->prev = curr_block->prev;
+    if (curr_block->next)
+    	curr_block->next->prev = new_block;
+    curr_block->prev->next = new_block;
+    mm_free(curr_block);
+    return new_block;
 }
