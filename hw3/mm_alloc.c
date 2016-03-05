@@ -75,7 +75,7 @@ void mm_free(void *ptr) {
     }
     while (curr_block->data + curr_block->size <= ptr);
     curr_block->is_free = 1;
-    if (curr_block->prev->is_free)
+    if (curr_block->prev != NULL && curr_block->prev->is_free)
     {
     	// merge left
     	curr_block->prev->next = curr_block->next;
