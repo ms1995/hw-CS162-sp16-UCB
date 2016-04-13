@@ -152,9 +152,10 @@ void tpcfollower_handle_tpc(tpcfollower_t *server, kvrequest_t *req, kvresponse_
         ret = tpcfollower_put_check(server, req->key, req->val);
         if (ret == 0)
             ret = tpclog_log(&server->log, req->type, req->key, req->val);
-        if (ret == 0)
-            res->type = SUCCESS;
-        else {
+        if (ret == 0) {
+            res->type = VOTE;
+            strcpy(res->body, MSG_COMMIT);
+        } else {
             res->type = ERROR;
             strcpy(res->body, GETMSG(ret));
         }
@@ -163,21 +164,21 @@ void tpcfollower_handle_tpc(tpcfollower_t *server, kvrequest_t *req, kvresponse_
         ret = tpcfollower_del_check(server, req->key);
         if (ret == 0)
             ret = tpclog_log(&server->log, req->type, req->key, req->val);
-        if (ret == 0)
-            res->type = SUCCESS;
-        else {
+        if (ret == 0) {
+            res->type = VOTE;
+            strcpy(res->body, MSG_COMMIT);
+        }else {
             res->type = ERROR;
             strcpy(res->body, GETMSG(ret));
         }
         break;
     case COMMIT:
         res->type = ACK;
-        strcpy(res->body, MSG_COMMIT);
         commit_all(server);
         break;
     case ABORT:
-        tpclog_clear_log(&server->log);
         res->type = ACK;
+        tpclog_clear_log(&server->log);
         break;
     default:
         res->type = ERROR;
