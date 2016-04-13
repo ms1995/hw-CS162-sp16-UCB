@@ -172,6 +172,7 @@ void tpcfollower_handle_tpc(tpcfollower_t *server, kvrequest_t *req, kvresponse_
         break;
     case COMMIT:
         res->type = ACK;
+        strcpy(res->body, MSG_COMMIT);
         commit_all(server);
         break;
     case ABORT:
