@@ -75,7 +75,7 @@ void mm_free(void *ptr) {
     }
     while (curr_block->data + curr_block->size <= ptr);
     curr_block->is_free = 1;
-    if (curr_block->prev != NULL && curr_block->prev->is_free)
+    if (curr_block->prev->is_free)
     {
     	// merge left
     	curr_block->prev->next = curr_block->next;
@@ -112,10 +112,10 @@ void *mm_realloc(void *ptr, size_t size) {
     		return NULL;
     }
     while (curr_block->data + curr_block->size <= ptr);
-    struct data_block *new_block = (struct data_block *) mm_malloc(size);
-    if (new_block == NULL)
+    void *new_block_data = mm_malloc(size);
+    if (new_block_data == NULL)
     	return NULL;
-    memcpy(new_block->data, curr_block->data, min(size, curr_block->size));
+    memcpy(new_block_data, curr_block->data, min(size, curr_block->size));
     mm_free(curr_block->data);
-    return new_block->data;
+    return new_block_data;
 }
