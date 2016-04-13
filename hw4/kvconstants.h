@@ -47,6 +47,7 @@
 #define ERRMSG_NO_KEY "error: no key"
 #define ERRMSG_KEY_LEN "error: improper key length"
 #define ERRMSG_VAL_LEN "error: value too long"
+#define ERRMSG_INVALID "error: invalid"
 #define ERRMSG_INVALID_REQUEST "error: invalid request"
 #define ERRMSG_NOT_IMPLEMENTED "error: not implemented"
 #define ERRMSG_NOT_AT_CAPACITY "error: follower_capacity not yet full"

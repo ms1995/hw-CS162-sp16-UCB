@@ -127,6 +127,20 @@ void commit_all(tpcfollower_t *server) {
     tpclog_clear_log(&server->log);
 }
 
+bool is_in_queue(tpcfollower_t *server, kvrequest_t *req) {
+    logentry_t curr;
+    tpclog_iterate_begin(&server->log);
+    while (tpclog_iterate_has_next(&server->log)) {
+        if (tpclog_iterate_next(&server->log, &curr) != NULL) {
+            if (curr.type == PUTREQ) {
+                if (strcmp(curr.data, req->key) == 0)
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+
 /* Handles an incoming kvrequest REQ, and populates RES as a response.  REQ and
  * RES both must point to valid kvrequest_t and kvrespont_t structs,
  * respectively. Assumes that the request should be handled as a TPC
@@ -167,9 +181,12 @@ void tpcfollower_handle_tpc(tpcfollower_t *server, kvrequest_t *req, kvresponse_
         if (ret == 0) {
             res->type = VOTE;
             strcpy(res->body, MSG_COMMIT);
-        }else {
+        } else {
             res->type = ERROR;
-            strcpy(res->body, GETMSG(ret));
+            if (is_in_queue(server, req))
+                strcpy(res->body, ERRMSG_INVALID);
+            else
+                strcpy(res->body, GETMSG(ret));
         }
         break;
     case COMMIT:
