@@ -140,9 +140,32 @@ follower_t *tpcleader_get_successor(tpcleader_t *leader, follower_t *predecessor
  * respectively.
  */
 void tpcleader_handle_get(tpcleader_t *leader, kvrequest_t *req, kvresponse_t *res) {
-  /* TODO: Implement me! */
-  res->type = ERROR;
-  strcpy(res->body, ERRMSG_NOT_IMPLEMENTED);
+    /* TODO: Implement me! */
+    follower_t *fol = tpcleader_get_primary(leader, req->key);
+    if (fol == NULL) {
+        res->type = ERROR;
+        strcpy(res->body, ERRMSG_NOT_AT_CAPACITY);
+        return;
+    }
+    int count = 0;
+    while (count < leader->follower_capacity) {
+        int sockfd = connect_to(fol->host, fol->port, 0);
+        if (sockfd < 0) {
+            // close(sockfd);
+            fol = tpcleader_get_successor(leader, fol);
+            ++count;
+            continue;
+        }
+
+        kvrequest_send(req, sockfd);
+        kvresponse_receive(res, sockfd);
+
+        close(sockfd);
+        return;
+    }
+
+    res->type = ERROR;
+    strcpy(res->body, ERRMSG_GENERIC_ERROR);
 }
 
 /* Handles an incoming TPC request REQ, and populates RES as a response.
@@ -154,14 +177,63 @@ void tpcleader_handle_get(tpcleader_t *leader, kvrequest_t *req, kvresponse_t *r
  * from every follower after sending the second phase messages.
  */
 void tpcleader_handle_tpc(tpcleader_t *leader, kvrequest_t *req, kvresponse_t *res) {
-  if (leader->follower_count != leader->follower_capacity) {
-    res->type = ERROR;
-    strcpy(res->body, ERRMSG_NOT_AT_CAPACITY);
-    return;
-  }
-  /* TODO: Implement me! */
-  res->type = ERROR;
-  strcpy(res->body, ERRMSG_NOT_IMPLEMENTED);
+    /* TODO: Implement me! */
+    follower_t *fol = tpcleader_get_primary(leader, req->key);
+    if (fol == NULL) {
+        res->type = ERROR;
+        strcpy(res->body, ERRMSG_NOT_AT_CAPACITY);
+        return;
+    }
+    int count = 0;
+    follower_t *first_fol = fol;
+    while (count < leader->follower_capacity) {
+        int sockfd = connect_to(fol->host, fol->port, 0);
+        if (sockfd < 0) {
+            // close(sockfd);
+            break;
+        }
+
+        kvrequest_send(req, sockfd);
+        kvresponse_receive(res, sockfd);
+        close(sockfd);
+
+        if (res->type == VOTE && strcmp(res->body, MSG_COMMIT) == 0) {
+            ++count;
+            fol = tpcleader_get_successor(leader, fol);
+        } else
+            break;
+    }
+    fol = first_fol;
+    kvrequest_t reqx;
+    if (count < leader->follower_capacity) {
+        reqx.type = ABORT;
+    } else {
+        reqx.type = COMMIT;
+    }
+    while (count) {
+        int sockfd = connect_to(fol->host, fol->port, 0);
+        if (sockfd < 0) {
+            // close(sockfd);
+            continue;
+        }
+
+        kvrequest_send(&reqx, sockfd);
+        kvresponse_receive(res, sockfd);
+        close(sockfd);
+
+        if (res->type == ACK) {
+            --count;
+            fol = tpcleader_get_successor(leader, fol);
+        } else
+            continue;
+    }
+    if (reqx.type == COMMIT) {
+        res->type = SUCCESS;
+        *(res->body) = 0;
+    } else {
+        res->type = ERROR;
+        strcpy(res->body, ERRMSG_GENERIC_ERROR);
+    }
 }
 
 /* Generic entrypoint for this LEADER. Takes in a socket on SOCKFD, which
