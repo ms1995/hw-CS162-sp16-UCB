@@ -110,6 +110,23 @@ int tpcfollower_del(tpcfollower_t *server, char *key) {
   return ret;
 }
 
+void commit_all(tpcfollower_t *server) {
+    char *val;
+    logentry_t curr;
+    tpclog_iterate_begin(&server->log);
+    while (tpclog_iterate_has_next(&server->log)) {
+        if (tpclog_iterate_next(&server->log, &curr) != NULL) {
+            if (curr.type == PUTREQ) {
+                val = curr.data + strlen(curr.data) + 1;
+                tpcfollower_put(server, curr.data, val);
+            } else if (curr.type == DELREQ) {
+                tpcfollower_del(server, curr.data);
+            }
+        }
+    }
+    tpclog_clear_log(&server->log);
+}
+
 /* Handles an incoming kvrequest REQ, and populates RES as a response.  REQ and
  * RES both must point to valid kvrequest_t and kvrespont_t structs,
  * respectively. Assumes that the request should be handled as a TPC
@@ -118,9 +135,53 @@ int tpcfollower_del(tpcfollower_t *server, char *key) {
  * failure. See the spec for details on logic and error messages.
  */
 void tpcfollower_handle_tpc(tpcfollower_t *server, kvrequest_t *req, kvresponse_t *res) {
-  /* TODO: Implement me! */
-  res->type = ERROR;
-  strcpy(res->body, ERRMSG_NOT_IMPLEMENTED);
+    /* TODO: Implement me! */
+    int ret;
+    *(res->body) = 0;
+    switch (req->type) {
+    case GETREQ:
+        ret = tpcfollower_get(server, req->key, res->body);
+        if (ret == 0)
+            res->type = GETRESP;
+        else {
+            res->type = ERROR;
+            strcpy(res->body, GETMSG(ret));
+        }
+        break;
+    case PUTREQ:
+        ret = tpcfollower_put_check(server, req->key, req->val);
+        if (ret == 0)
+            ret = tpclog_log(&server->log, req->type, req->key, req->val);
+        if (ret == 0)
+            res->type = SUCCESS;
+        else {
+            res->type = ERROR;
+            strcpy(res->body, GETMSG(ret));
+        }
+        break;
+    case DELREQ:
+        ret = tpcfollower_del_check(server, req->key);
+        if (ret == 0)
+            ret = tpclog_log(&server->log, req->type, req->key, req->val);
+        if (ret == 0)
+            res->type = SUCCESS;
+        else {
+            res->type = ERROR;
+            strcpy(res->body, GETMSG(ret));
+        }
+        break;
+    case COMMIT:
+        res->type = ACK;
+        commit_all(server);
+        break;
+    case ABORT:
+        tpclog_clear_log(&server->log);
+        res->type = ACK;
+        break;
+    default:
+        res->type = ERROR;
+        strcpy(res->body, ERRMSG_INVALID_REQUEST);
+    };
 }
 
 /* Generic entrypoint for this SERVER. Takes in a socket on SOCKFD, which
