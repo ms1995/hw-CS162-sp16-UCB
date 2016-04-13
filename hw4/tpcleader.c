@@ -148,7 +148,7 @@ void tpcleader_handle_get(tpcleader_t *leader, kvrequest_t *req, kvresponse_t *r
         return;
     }
     int count = 0;
-    while (count < leader->follower_capacity) {
+    while (count < leader->redundancy) {
         int sockfd = connect_to(fol->host, fol->port, 0);
         if (sockfd < 0) {
             // close(sockfd);
@@ -186,7 +186,7 @@ void tpcleader_handle_tpc(tpcleader_t *leader, kvrequest_t *req, kvresponse_t *r
     }
     int count = 0;
     follower_t *first_fol = fol;
-    while (count < leader->follower_capacity) {
+    while (count < leader->redundancy) {
         int sockfd = connect_to(fol->host, fol->port, 0);
         if (sockfd < 0) {
             // close(sockfd);
@@ -205,7 +205,7 @@ void tpcleader_handle_tpc(tpcleader_t *leader, kvrequest_t *req, kvresponse_t *r
     }
     fol = first_fol;
     kvrequest_t reqx;
-    if (count < leader->follower_capacity) {
+    if (count < leader->redundancy) {
         reqx.type = ABORT;
     } else {
         reqx.type = COMMIT;
